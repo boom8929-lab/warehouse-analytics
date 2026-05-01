@@ -1,0 +1,81 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <title>Склад — Панель управления</title>
+  <style>
+    body {
+      margin: 0;
+      font-family: Arial;
+      background: #0f172a;
+      color: white;
+    }
+
+    header {
+      padding: 20px;
+      background: #1e293b;
+      text-align: center;
+      font-size: 24px;
+    }
+
+    .container {
+      padding: 20px;
+    }
+
+    .grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+      gap: 20px;
+    }
+
+    .card {
+      background: #1e293b;
+      padding: 20px;
+      border-radius: 12px;
+      cursor: pointer;
+      transition: 0.3s;
+    }
+
+    .card:hover {
+      background: #334155;
+    }
+
+    .title {
+      font-size: 18px;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+
+<header>
+  👋 Привет! Панель управления складом
+</header>
+
+<div class="container">
+  <div class="grid">
+
+<div class="card" onclick="window.location.href='analytics.html'">
+  <div class="title">📊 Аналитика ШК</div>
+  <div>Просмотр графиков и данных</div>
+</div>
+    <div class="card" onclick="alert('Открыть прогнозы')">
+      <div class="title">📈 Прогнозы</div>
+      <div>Будущие показатели</div>
+    </div>
+
+    <div class="card" onclick="alert('Открыть склад')">
+      <div class="title">📦 Склад</div>
+      <div>Текущая ситуация</div>
+    </div>
+
+    <div class="card" onclick="alert('Настройки')">
+      <div class="title">⚙️ Настройки</div>
+      <div>Загрузка данных</div>
+    </div>
+
+  </div>
+</div>
+
+</body>
+</html>
