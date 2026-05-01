@@ -1,38 +1,609 @@
 <!DOCTYPE html>
 <html lang="ru">
 <head>
-  <meta charset="UTF-8">
-  <title>Аналитика ШК</title>
-  <style>
-    body {
-      margin: 0;
-      font-family: Arial;
-      background: #0f172a;
-      color: white;
-      padding: 20px;
-    }
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=yes">
+    <title>Складской аналитик Pro | OCR + управленческие метрики</title>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5.0.5/dist/tesseract.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+            font-family: 'Inter', system-ui, -apple-system, 'Segoe UI', Roboto, sans-serif;
+        }
 
-    h1 {
-      margin-bottom: 20px;
-    }
+        body {
+            background: #0b0f17;
+            color: #eef2ff;
+            padding: 24px 20px 40px;
+        }
 
-    .back {
-      margin-bottom: 20px;
-      display: inline-block;
-      cursor: pointer;
-      color: #38bdf8;
-    }
-  </style>
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+        }
+
+        header {
+            display: flex;
+            justify-content: space-between;
+            align-items: baseline;
+            flex-wrap: wrap;
+            margin-bottom: 2rem;
+            border-bottom: 1px solid #2d3a5e;
+            padding-bottom: 1rem;
+        }
+
+        h1 {
+            font-size: 1.8rem;
+            background: linear-gradient(135deg, #a78bfa, #3b82f6);
+            background-clip: text;
+            -webkit-background-clip: text;
+            color: transparent;
+        }
+
+        .back-link {
+            color: #94a3b8;
+            text-decoration: none;
+            background: #1e293b;
+            padding: 6px 14px;
+            border-radius: 60px;
+            font-size: 0.85rem;
+            transition: 0.2s;
+        }
+
+        .back-link:hover {
+            background: #2d3a5e;
+            color: white;
+        }
+
+        .upload-card {
+            background: linear-gradient(145deg, #111827, #0f1522);
+            border-radius: 2rem;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+            box-shadow: 0 20px 35px -12px rgba(0,0,0,0.5);
+            border: 1px solid #2d3a5e;
+        }
+
+        .upload-area {
+            border: 2px dashed #3b82f6;
+            border-radius: 1.5rem;
+            padding: 2rem;
+            text-align: center;
+            cursor: pointer;
+            transition: 0.2s;
+            background: #0a0f1c;
+        }
+
+        .upload-area:hover {
+            background: #111a2c;
+            border-color: #60a5fa;
+        }
+
+        .status {
+            margin-top: 1rem;
+            font-weight: 500;
+            padding: 0.5rem;
+            border-radius: 2rem;
+            background: #1e293b;
+            display: inline-block;
+            width: auto;
+        }
+
+        .status.success { background: #14532d; color: #bbf7d0; }
+        .status.error { background: #7f1a1a; color: #fecaca; }
+        .status.processing { background: #1e3a8a; color: #bfdbfe; }
+
+        .kpi-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            margin-bottom: 2rem;
+        }
+
+        .kpi-card {
+            background: #0f172ad9;
+            backdrop-filter: blur(4px);
+            border-radius: 1.5rem;
+            padding: 1rem 1.5rem;
+            flex: 1;
+            min-width: 180px;
+            border-left: 4px solid #3b82f6;
+        }
+
+        .kpi-label {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            color: #9ca3af;
+        }
+
+        .kpi-value {
+            font-size: 2rem;
+            font-weight: 800;
+        }
+
+        .groups-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
+            gap: 1rem;
+            margin: 1.5rem 0;
+        }
+
+        .group-card {
+            background: #0f172ad9;
+            backdrop-filter: blur(4px);
+            padding: 0.8rem 0.5rem;
+            border-radius: 1.5rem;
+            text-align: center;
+            font-weight: 600;
+            transition: all 0.2s;
+            border-left: 4px solid;
+            box-shadow: 0 6px 12px rgba(0,0,0,0.3);
+        }
+
+        .group-card.green { border-left-color: #22c55e; background: #14532d30; }
+        .group-card.yellow { border-left-color: #eab308; background: #713f1230; }
+        .group-card.red { border-left-color: #ef4444; background: #7f1a1a30; }
+
+        .group-name { font-size: 0.75rem; color: #9ca3af; }
+        .group-value { font-size: 1.5rem; font-weight: 700; }
+
+        .section-title {
+            margin: 1.5rem 0 0.8rem 0;
+            font-size: 1.4rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+
+        .analytics-text {
+            background: #0f172a;
+            padding: 1.2rem;
+            border-radius: 1.5rem;
+            margin: 1rem 0;
+            border-left: 4px solid #f97316;
+            font-size: 0.95rem;
+        }
+
+        button, .btn-small {
+            background: #2d3a5e;
+            border: none;
+            color: white;
+            padding: 0.5rem 1rem;
+            border-radius: 2rem;
+            font-weight: 500;
+            cursor: pointer;
+            transition: 0.2s;
+        }
+
+        button:hover { background: #3b4e7a; transform: scale(0.98); }
+
+        .flex-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 1.5rem;
+            justify-content: space-between;
+        }
+
+        .chart-container {
+            background: #0f1522;
+            border-radius: 1.5rem;
+            padding: 1rem;
+            flex: 2;
+            min-width: 250px;
+        }
+
+        .staff-panel {
+            background: #0f1522;
+            border-radius: 1.5rem;
+            padding: 1rem;
+            flex: 1;
+        }
+
+        input {
+            background: #0a0f1a;
+            border: 1px solid #334155;
+            color: white;
+            padding: 8px 12px;
+            border-radius: 1rem;
+            width: 100px;
+            margin: 0 0.5rem;
+        }
+
+        hr {
+            border-color: #2d3a5e;
+            margin: 1rem 0;
+        }
+    </style>
 </head>
 <body>
+<div class="container">
+    <header>
+        <h1>📊 Складской аналитик Pro · Управленческие метрики</h1>
+        <a href="index.html" class="back-link">← Меню</a>
+    </header>
 
-<div class="back" onclick="window.location.href='index.html'">
-  ← Назад
+    <!-- Загрузка скриншотов -->
+    <div class="upload-card">
+        <div class="upload-area" id="dropzone">
+            📸 Нажмите или перетащите скриншот (PNG/JPG)<br>
+            <span style="font-size: 0.8rem;">ГРУППЫ, полибоксы, сортировка/час, сетки, отставания, ШК на полу</span>
+            <input type="file" id="fileInput" accept="image/*" hidden>
+        </div>
+        <div id="ocrStatus" class="status">⚡ Ожидание загрузки</div>
+    </div>
+
+    <!-- KPI: ШК на полу (критический показатель) -->
+    <div class="kpi-row">
+        <div class="kpi-card">
+            <div class="kpi-label">📦 ШК НА ПОЛУ (незавершённый поток)</div>
+            <div class="kpi-value" id="shkNaPoluValue">—</div>
+            <div style="font-size: 0.7rem;">норма ≤ 2000</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">⚙️ Сумма ШК по группам</div>
+            <div class="kpi-value" id="totalShkValue">0</div>
+        </div>
+        <div class="kpi-card">
+            <div class="kpi-label">⏱️ Полибоксы &gt;4ч</div>
+            <div class="kpi-value" id="badPolyCount">0</div>
+        </div>
+    </div>
+
+    <!-- Группы GR1–GR11 -->
+    <div class="section-title">📦 ГРУППЫ (направления доставки) — пороги: зелёный <800, жёлтый 800–1800, красный >1800</div>
+    <div id="groupsContainer" class="groups-grid"></div>
+
+    <!-- График + панель сотрудников -->
+    <div class="flex-row">
+        <div class="chart-container">
+            <canvas id="shkChart" width="400" height="250" style="max-height: 280px;"></canvas>
+            <div style="font-size: 0.7rem; text-align: center;">История: сумма ШК групп</div>
+        </div>
+        <div class="staff-panel">
+            <div class="section-title" style="margin-top:0;">👥 Сотрудники (КС / предсорт)</div>
+            <label>КС (человек): <input type="number" id="ksInput" value="34" step="1"></label>
+            <label>Предсорт: <input type="number" id="presortInput" value="28" step="1"></label>
+            <button id="calcStaffBtn">📊 Анализ эффективности</button>
+            <div id="staffAdvice" style="margin-top: 10px; font-size:0.85rem; background:#1e293b; padding: 6px; border-radius: 1rem;"></div>
+        </div>
+    </div>
+
+    <!-- Блок аналитики и рекомендаций -->
+    <div class="analytics-text" id="analyticsBlock">
+        🧠 Аналитические рекомендации появятся после обработки скриншотов.
+    </div>
+
+    <!-- Дополнительная информация (полибоксы, сортировка по часам, сетки) -->
+    <div id="extraInfo" style="background: #0b0f1a; border-radius: 1.5rem; padding: 1rem; margin-top: 1rem;"></div>
 </div>
 
-<h1>📊 Аналитика ШК</h1>
+<script>
+    // ---------- Глобальное состояние ----------
+    let historyPoints = [];      // { total, timestamp }
+    let groupsData = {};         // { "GR1": 1324, ... }
+    let shkNaPolu = null;        // число ШК на полу
+    let badPolyCount = 0;        // количество полибоксов >4ч
+    let lastSortingAvg = null;   // средняя сортировка в час
+    let chartInstance = null;
 
-<p>Здесь будут твои графики и данные по отставаниям</p>
+    // DOM элементы
+    const shkNaPoluElem = document.getElementById('shkNaPoluValue');
+    const totalShkElem = document.getElementById('totalShkValue');
+    const badPolyElem = document.getElementById('badPolyCount');
 
+    // Загрузка/сохранение в localStorage
+    function loadFromLocal() {
+        const storedHistory = localStorage.getItem('warehouseHistory');
+        if(storedHistory) { try { historyPoints = JSON.parse(storedHistory); if(historyPoints.length) updateChart(); } catch(e){} }
+        const storedGroups = localStorage.getItem('lastGroups');
+        if(storedGroups) { try { groupsData = JSON.parse(storedGroups); renderGroups(); } catch(e){} }
+        const storedShkPolu = localStorage.getItem('shkNaPolu');
+        if(storedShkPolu) { shkNaPolu = parseInt(storedShkPolu); updateShkPoluUI(); }
+        const storedBadPoly = localStorage.getItem('badPolyCount');
+        if(storedBadPoly) { badPolyCount = parseInt(storedBadPoly); badPolyElem.innerText = badPolyCount; }
+        renderStaffAdvice();
+        generateFullAnalytics();
+    }
+
+    function saveToLocal() {
+        localStorage.setItem('warehouseHistory', JSON.stringify(historyPoints));
+        localStorage.setItem('lastGroups', JSON.stringify(groupsData));
+        if(shkNaPolu !== null) localStorage.setItem('shkNaPolu', shkNaPolu);
+        localStorage.setItem('badPolyCount', badPolyCount);
+    }
+
+    function updateShkPoluUI() {
+        if(shkNaPolu === null) shkNaPoluElem.innerText = '—';
+        else {
+            shkNaPoluElem.innerText = shkNaPolu.toLocaleString();
+            if(shkNaPolu > 2000) shkNaPoluElem.style.color = '#f87171';
+            else shkNaPoluElem.style.color = '#bbf7d0';
+        }
+    }
+
+    // График
+    function updateChart() {
+        const ctx = document.getElementById('shkChart').getContext('2d');
+        if(chartInstance) chartInstance.destroy();
+        const labels = historyPoints.map((_, idx) => `#${idx+1}`);
+        const values = historyPoints.map(p => p.total);
+        chartInstance = new Chart(ctx, {
+            type: 'line',
+            data: { labels, datasets: [{ label: 'Сумма ШК (группы)', data: values, borderColor: '#3b82f6', backgroundColor: '#3b82f620', tension: 0.2, fill: true }] },
+            options: { responsive: true, maintainAspectRatio: true, plugins: { legend: { labels: { color: '#cbd5e1' } } } }
+        });
+    }
+
+    // Отрисовка групп с цветами по новым порогам
+    function renderGroups() {
+        const container = document.getElementById('groupsContainer');
+        container.innerHTML = '';
+        let total = 0;
+        for(let i=1; i<=11; i++){
+            const key = `GR${i}`;
+            const val = groupsData[key] !== undefined ? groupsData[key] : 0;
+            total += val;
+            let colorClass = 'green';
+            if(val > 1800) colorClass = 'red';
+            else if(val > 800) colorClass = 'yellow';
+            const card = document.createElement('div');
+            card.className = `group-card ${colorClass}`;
+            card.innerHTML = `<div class="group-name">${key}</div><div class="group-value">${val.toLocaleString()}</div>`;
+            container.appendChild(card);
+        }
+        totalShkElem.innerText = total.toLocaleString();
+        // Добавляем точку в историю, если сумма изменилась
+        if(total > 0 && (historyPoints.length === 0 || historyPoints[historyPoints.length-1].total !== total)){
+            historyPoints.push({ total, timestamp: Date.now() });
+            if(historyPoints.length > 15) historyPoints.shift();
+            updateChart();
+            saveToLocal();
+        }
+        generateFullAnalytics();   // обновить рекомендации
+    }
+
+    // Генерация полной аналитики на основе всех метрик
+    function generateFullAnalytics() {
+        const totalShk = Object.values(groupsData).reduce((a,b)=>a+b,0);
+        let adviceList = [];
+
+        // 1. Перегруз склада по группам
+        if(totalShk > 12000) adviceList.push("⚠️ КРИТИЧЕСКАЯ ПЕРЕГРУЗКА склада (>12k ШК). Срочно усиливать вывоз (волнорезов).");
+
+        // 2. Анализ каждой группы
+        for(let i=1; i<=11; i++){
+            const val = groupsData[`GR${i}`] || 0;
+            if(val > 1800) adviceList.push(`🚨 ГРУППА GR${i} перегружена (${val} ШК). Разгрузить направление, добавить сортировщиков.`);
+            else if(val > 800) adviceList.push(`⚠️ ГРУППА GR${i} на пределе (${val} ШК). Следить.`);
+        }
+
+        // 3. ШК на полу
+        if(shkNaPolu !== null) {
+            if(shkNaPolu > 2000) adviceList.push(`📦 ШК НА ПОЛУ = ${shkNaPolu.toLocaleString()} (выше нормы 2000). Нужно усилить вывоз, иначе остановка потока.`);
+            else if(shkNaPolu > 1000) adviceList.push(`📦 ШК на полу = ${shkNaPolu} — умеренная загрузка, но контроль не ослаблять.`);
+        }
+
+        // 4. Полибоксы
+        if(badPolyCount > 3) adviceList.push(`⏳ Обнаружено ${badPolyCount} полибоксов с жизненным циклом >4 часов. Товар завис — срочно разобрать КС.`);
+        else if(badPolyCount > 0) adviceList.push(`⚠️ Есть полибоксы старше 4ч (${badPolyCount}). Ускорить обработку.`);
+
+        // 5. Сортировка по часам (производительность КС)
+        if(lastSortingAvg !== null) {
+            if(lastSortingAvg < 7000) adviceList.push(`📉 Сортировка в час = ${Math.round(lastSortingAvg)} (<7000). Слабая КС, не хватает людей или навыков. Усилить КС.`);
+            else if(lastSortingAvg < 8500) adviceList.push(`📊 Сортировка в час = ${Math.round(lastSortingAvg)} — чуть ниже идеала (8500+). Можно улучшить.`);
+            else adviceList.push(`✅ Производительность КС отличная (${Math.round(lastSortingAvg)} шт/час).`);
+        }
+
+        // 6. Сравнение предсорт / КС (пользовательский ввод)
+        const ks = parseInt(document.getElementById('ksInput').value) || 0;
+        const pres = parseInt(document.getElementById('presortInput').value) || 0;
+        if(ks > 0 && pres > 0) {
+            const ratio = pres / ks;   // предсорт больше в 1.5 раза должен быть
+            if(ratio > 1.5) adviceList.push(`👥 Предсорт (${pres} чел) перегружает КС (${ks} чел) в ${ratio.toFixed(1)} раз. Замедлить предсорт или усилить КС.`);
+            else if(ratio < 0.8) adviceList.push(`⚠️ КС сильнее предсорта — возможно, неправильная балансировка. Проверить нормы.`);
+            else adviceList.push(`⚖️ Соотношение предсорт/КС в пределах нормы (${ratio.toFixed(1)}).`);
+        }
+
+        // 7. Если есть данные о сетках (из extraInfo)
+        const extraDiv = document.getElementById('extraInfo');
+        if(extraDiv.innerText.includes('Сеток') && extraDiv.innerText.includes('товар')) {
+            adviceList.push(`📦 Данные по сеткам/предсорту получены — см. дополнительную информацию.`);
+        }
+
+        if(adviceList.length === 0) adviceList.push("✅ Система не выявила критических отклонений. Все процессы в норме.");
+
+        document.getElementById('analyticsBlock').innerHTML = `🧠 <strong>Управленческие рекомендации:</strong><br><ul style="margin-left: 1.2rem; margin-top: 0.5rem;">${adviceList.map(a => `<li>${a}</li>`).join('')}</ul>`;
+        // звук при критическом перегрузе
+        if(totalShk > 12000 || (shkNaPolu && shkNaPolu > 2500)) playAlertSound();
+    }
+
+    function playAlertSound() {
+        try {
+            const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
+            const osc = audioCtx.createOscillator();
+            const gain = audioCtx.createGain();
+            osc.connect(gain);
+            gain.connect(audioCtx.destination);
+            osc.frequency.value = 880;
+            gain.gain.value = 0.2;
+            osc.start();
+            gain.gain.exponentialRampToValueAtTime(0.00001, audioCtx.currentTime + 0.8);
+            osc.stop(audioCtx.currentTime + 0.8);
+        } catch(e) { console.log("звук не поддерживается"); }
+    }
+
+    function renderStaffAdvice() {
+        const ks = parseInt(document.getElementById('ksInput').value) || 0;
+        const pres = parseInt(document.getElementById('presortInput').value) || 0;
+        let txt = "";
+        if(pres>0 && ks>0){
+            const ratio = pres/ks;
+            if(ratio > 1.5) txt = "⚠️ Предсорт перегружает КС. Замедлить предсорт или добавить людей в КС.";
+            else if(ratio < 0.8) txt = "⚠️ КС опережает предсорт — возможно, предсорт отстаёт.";
+            else txt = "✅ Баланс предсорт/КС в норме.";
+        }
+        document.getElementById('staffAdvice').innerHTML = txt;
+        generateFullAnalytics();
+    }
+
+    // ---------- OCR и парсинг ----------
+    async function processImage(file) {
+        const statusDiv = document.getElementById('ocrStatus');
+        statusDiv.innerText = '🔄 Распознавание текста Tesseract.js... (до 5-10 сек)';
+        statusDiv.className = 'status processing';
+        try {
+            const { data: { text } } = await Tesseract.recognize(file, 'rus+eng', { logger: m => console.log(m) });
+            console.log("RAW OCR:", text);
+            statusDiv.innerText = '✅ Текст распознан. Анализ...';
+            parseAllMetrics(text);
+            statusDiv.innerText = '✅ Обработано! Рекомендации обновлены.';
+            statusDiv.className = 'status success';
+            saveToLocal();
+        } catch(err) {
+            console.error(err);
+            statusDiv.innerText = '❌ Ошибка OCR. Попробуйте другое изображение.';
+            statusDiv.className = 'status error';
+        }
+    }
+
+    function parseAllMetrics(ocrText) {
+        // 1. Группы (всегда пробуем)
+        parseGroups(ocrText);
+        // 2. ШК на полу: ищем "отставание", "ШК на полу", "Общее отставание сортів"
+        let shkMatch = ocrText.match(/(?:Общее отставание|ШК на полу|отставание сорт[аиев]*|Осторіювання в час)[:\s]*(\d{1,6})/i);
+        if(shkMatch) {
+            shkNaPolu = parseInt(shkMatch[1]);
+            updateShkPoluUI();
+        } else {
+            // дополнительно ищем простые числа после ключей
+            let lines = ocrText.split(/\r?\n/);
+            for(let line of lines) {
+                if(/(отставание|завал|полу)/i.test(line)) {
+                    let nums = line.match(/\b(\d{1,6})\b/g);
+                    if(nums && nums.length) { shkNaPolu = parseInt(nums[0]); updateShkPoluUI(); break; }
+                }
+            }
+        }
+
+        // 3. Полибоксы (>4ч)
+        let times = ocrText.match(/\b\d{2}:\d{2}\b/g);
+        if(times) {
+            let countBad = 0;
+            for(let t of times) {
+                let [h,m] = t.split(':');
+                if(parseInt(h) >= 4) countBad++;
+            }
+            badPolyCount = countBad;
+            badPolyElem.innerText = badPolyCount;
+        }
+
+        // 4. Сортировка по часам
+        parseHourSorting(ocrText);
+
+        // 5. Сетки / предсорт (доп.инфо)
+        parseGridsAndPresort(ocrText);
+
+        generateFullAnalytics();
+    }
+
+    // парсинг групп (последнее число в строке)
+    function parseGroups(text) {
+        const lines = text.split(/\r?\n/);
+        let newGroups = {};
+        for(let line of lines) {
+            if(line.includes('ГРУП') && (line.includes('СЦ') || line.match(/\d{5,}/))) {
+                let groupMatch = line.match(/ГРУП\s+(\d+)/i);
+                if(groupMatch) {
+                    let grpNum = parseInt(groupMatch[1]);
+                    if(grpNum>=1 && grpNum<=11){
+                        let numbers = line.match(/\b\d{1,7}(?:\s?\d+)*\b/g);
+                        if(numbers && numbers.length) {
+                            let lastNumStr = numbers[numbers.length-1].replace(/\s/g,'');
+                            let lastNum = parseInt(lastNumStr);
+                            if(!isNaN(lastNum) && lastNum > 0 && lastNum < 100000) {
+                                newGroups[`GR${grpNum}`] = lastNum;
+                            }
+                        }
+                    }
+                }
+            }
+        }
+        // дополнительно: итоговая строка "Итог Результат: 14209" не нужна для групп
+        if(Object.keys(newGroups).length) {
+            groupsData = newGroups;
+            renderGroups();
+        }
+        return Object.keys(newGroups).length > 0;
+    }
+
+    function parseHourSorting(text) {
+        let values = [];
+        let lines = text.split(/\r?\n/);
+        for(let line of lines) {
+            let match = line.match(/(\d{1,2})\s+([\d\s]{2,6})\s+[\d\s]*?(?:\d{1,3}%)?/);
+            if(match && match[1] >=0 && match[1] <= 23) {
+                let val = parseInt(match[2].replace(/\s/g,''));
+                if(!isNaN(val) && val > 0 && val < 200000) values.push(val);
+            }
+        }
+        if(values.length) {
+            let avg = values.reduce((a,b)=>a+b,0)/values.length;
+            lastSortingAvg = avg;
+            let advice = avg < 7000 ? "⚠️ Слабая КС: средняя сортировка <7000 шт/час." : "✅ Производительность КС в норме (>7000).";
+            document.getElementById('extraInfo').innerHTML += `<div>📈 Сортировка по часам: среднее ${Math.round(avg)} шт/час. ${advice}</div>`;
+        } else {
+            document.getElementById('extraInfo').innerHTML += `<div>⚠️ Не удалось извлечь данные сортировки по часам.</div>`;
+        }
+    }
+
+    function parseGridsAndPresort(text) {
+        let gridMatch = text.match(/сеток:\s*(\d{1,5})/i);
+        let itemsMatch = text.match(/предметов товара:\s*([\d\s]+)/i);
+        if(gridMatch && itemsMatch) {
+            let grids = parseInt(gridMatch[1]);
+            let items = parseInt(itemsMatch[1].replace(/\s/g,''));
+            document.getElementById('extraInfo').innerHTML += `<div>🔧 ПРЕДСОРТ: ${grids} сеток, объём товара ${items.toLocaleString()} шт.</div>`;
+            if(items > 12000) document.getElementById('extraInfo').innerHTML += `<div>⚠️ Высокий объём товара на предсорте — возможна перегрузка.</div>`;
+        }
+    }
+
+    // ----- Инициализация событий -----
+    const dropzone = document.getElementById('dropzone');
+    const fileInput = document.getElementById('fileInput');
+    dropzone.addEventListener('click', () => fileInput.click());
+    fileInput.addEventListener('change', (e) => { if(e.target.files[0]) processImage(e.target.files[0]); });
+    dropzone.addEventListener('dragover', (e) => { e.preventDefault(); dropzone.style.background = '#111a2c'; });
+    dropzone.addEventListener('dragleave', () => { dropzone.style.background = '#0a0f1c'; });
+    dropzone.addEventListener('drop', (e) => {
+        e.preventDefault();
+        dropzone.style.background = '#0a0f1c';
+        const file = e.dataTransfer.files[0];
+        if(file && file.type.startsWith('image/')) processImage(file);
+        else alert('Загрузите PNG или JPG');
+    });
+
+    document.getElementById('calcStaffBtn').addEventListener('click', () => {
+        renderStaffAdvice();
+        generateFullAnalytics();
+    });
+    document.getElementById('ksInput').addEventListener('input', () => { renderStaffAdvice(); generateFullAnalytics(); });
+    document.getElementById('presortInput').addEventListener('input', () => { renderStaffAdvice(); generateFullAnalytics(); });
+
+    loadFromLocal();
+    if(Object.keys(groupsData).length === 0) {
+        // демо-данные (из первого скриншота)
+        groupsData = {"GR1":1324,"GR10":2064,"GR11":183,"GR2":2149,"GR3":1568,"GR4":575,"GR5":1783,"GR6":99,"GR7":1066,"GR8":627,"GR9":856};
+        renderGroups();
+        shkNaPolu = 283;
+        updateShkPoluUI();
+        badPolyCount = 2;
+        badPolyElem.innerText = badPolyCount;
+        saveToLocal();
+        generateFullAnalytics();
+    }
+</script>
 </body>
 </html>
